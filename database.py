@@ -91,7 +91,7 @@ def insert_resume_data(conn, row):
         cursor.execute('''
             SELECT COUNT(*) 
             FROM resumes 
-            WHERE mobile = ? AND created_at < ?
+            WHERE mobile = ? AND created_at != ?
         ''', (row['Mobile'], current_date))
         
         existing_count = cursor.fetchone()[0]

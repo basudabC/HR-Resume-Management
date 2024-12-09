@@ -56,24 +56,10 @@ def upload_resumes():
                 
                 # Select columns of interest
                 df = df[['Name', 'Mobile', 'Email', 'Graduation', 'Company', 'Role', 'Calculated_Duration']]
-                # Flatten mobile numbers if they're lists
-                def flatten_mobile(mobile):
-                    if isinstance(mobile, list):
-                        # Join list elements, remove any non-numeric characters
-                        return ''.join(filter(str.isdigit, str(mobile[0]))) if mobile else None
-                    elif isinstance(mobile, str):
-                        # Remove any non-numeric characters from string
-                        return ''.join(filter(str.isdigit, mobile))
-                    return mobile
+                df['Mobile'] = df['Mobile'].apply(lambda x: str(x).split(',')[0].strip(" []'"))
 
-                # Clean Mobile column
-                df['Mobile'] = df['Mobile'].apply(flatten_mobile)
-
-                # Remove any rows with empty Mobile numbers
-                df = df.dropna(subset=['Mobile'])
-
-                # Now group by
-                #overall_exp = df.groupby(['Mobile'])['Calculated_Duration'].sum().reset_index()
+                # Clean and extract first email address
+                df['Email'] = df['Email'].apply(lambda x: str(x).split(',')[0].strip())
                 
                 # Calculate total experience
                 overall_exp = df.groupby(['Mobile'])['Calculated_Duration'].sum().reset_index()

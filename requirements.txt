@@ -1,0 +1,4 @@
+llama_parse==0.5.17
+pandas==2.2.3
+streamlit==1.40.0
+streamlit==1.32.0

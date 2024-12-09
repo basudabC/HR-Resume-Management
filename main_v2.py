@@ -4,6 +4,7 @@ import pandas as pd
 import os
 import tempfile
 from datetime import datetime
+import shutil
 
 from resume_processor import extract_zip_and_process_resumes, process_resume_json_files, process_duration_column
 from database import create_connection, create_table, insert_resume_data, fetch_resumes, update_resume, delete_resume, search_resumes
@@ -55,6 +56,24 @@ def upload_resumes():
                 
                 # Select columns of interest
                 df = df[['Name', 'Mobile', 'Email', 'Graduation', 'Company', 'Role', 'Calculated_Duration']]
+                # Flatten mobile numbers if they're lists
+                def flatten_mobile(mobile):
+                    if isinstance(mobile, list):
+                        # Join list elements, remove any non-numeric characters
+                        return ''.join(filter(str.isdigit, str(mobile[0]))) if mobile else None
+                    elif isinstance(mobile, str):
+                        # Remove any non-numeric characters from string
+                        return ''.join(filter(str.isdigit, mobile))
+                    return mobile
+
+                # Clean Mobile column
+                df['Mobile'] = df['Mobile'].apply(flatten_mobile)
+
+                # Remove any rows with empty Mobile numbers
+                df = df.dropna(subset=['Mobile'])
+
+                # Now group by
+                #overall_exp = df.groupby(['Mobile'])['Calculated_Duration'].sum().reset_index()
                 
                 # Calculate total experience
                 overall_exp = df.groupby(['Mobile'])['Calculated_Duration'].sum().reset_index()
@@ -76,7 +95,10 @@ def upload_resumes():
                     ['Name', 'Mobile', 'Email', 'Graduation', 'Company', 'Role'],
                     default=['Name', 'Mobile', 'Graduation']
                 )
-                
+
+                # Ensure all grouping columns exist in the DataFrame
+                valid_columns = [col for col in grouping_columns if col in df.columns]
+
                 # Aggregation options
                 agg_columns = {
                     'Company': 'first',
@@ -85,9 +107,9 @@ def upload_resumes():
                     'Total_Experience': 'first',
                     'Email': 'first'
                 }
-                
+
                 # Perform grouping
-                grouped_df = df.groupby(grouping_columns).agg(agg_columns).reset_index()
+                grouped_df = df.groupby(valid_columns).agg(agg_columns).reset_index()
                 
                 st.dataframe(grouped_df, use_container_width=True, height=600)
             
@@ -124,6 +146,11 @@ def upload_resumes():
                 for _, row in df.iterrows():
                     insert_resume_data(conn, row)
                 
+                # Delete the temporary extract directory
+                temp_extract_dir = os.path.join(output_folder, 'temp_pdfs')
+                if os.path.exists(temp_extract_dir):
+                    shutil.rmtree(temp_extract_dir)
+                
                 st.success("Resumes saved to database successfully!")
                 
                 # Close connection
@@ -138,6 +165,7 @@ def view_resumes():
     
     # Fetch resumes
     df = fetch_resumes(conn)
+    df['Mobile'] = df['Mobile'].astype(str)
     
     # Display dataframe with editing capabilities
     edited_df = st.data_editor(df, 
